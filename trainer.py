@@ -101,8 +101,7 @@ if __name__ == '__main__':
     checkpoint_callback = ModelCheckpoint(
         monitor='val_acc',
         mode='max',
-        dirpath="data/",
-        filename="model-{100 * val_acc:.1f}-{val_loss:.2f}",
+        filename="model-{val_acc:.3f}-{val_loss:.2f}",
     )
     early_stopping = EarlyStopping('val_loss', patience=200, strict=True)
     logger = TensorBoardLogger("lightning_logs", name=f"{model_}/{optimizer_}", log_graph=True,)
