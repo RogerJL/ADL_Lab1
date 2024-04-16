@@ -1,3 +1,4 @@
+import joblib
 import torch
 import torch.nn as nn
 import torch.optim as optim
@@ -51,13 +52,38 @@ def load():
                                       norm='l2')
     training_data = word_vectorizer.fit_transform(training_data)  # transform texts to sparse matrix
     training_data = training_data.todense()  # convert to dense matrix for Pytorch
+    assert word_vectorizer.get_stop_words() is None
 
     vocab_size = len(word_vectorizer.vocabulary_)
 
-    validation_data = word_vectorizer.transform(validation_data)
-    validation_data = validation_data.todense()
+    translator = Translator.create_persistent(word_vectorizer)
+    validation_data = translator.encode(validation_data)
 
     return vocab_size, Sentences(training_data, training_labels), Sentences(validation_data, validation_labels)
+
+class Translator:
+    def __init__(self, word_vectorizer):
+        self.word_vectorizer = word_vectorizer
+
+    @classmethod
+    def create_persistent(cls, word_vectorizer):
+        t = Translator(word_vectorizer)
+        joblib.dump(word_vectorizer, 'vectorizer.pkl')
+        return t
+
+    @classmethod
+    def load_persistent(cls):
+        return Translator(joblib.load('vectorizer.pkl'))
+
+    def encode(self, raw_documents, as_tensor=False):
+        matrix = self.word_vectorizer.transform(raw_documents).todense()
+        if as_tensor:
+            return torch.from_numpy(np.array(matrix)).type(torch.FloatTensor)
+        return matrix
+
+    def decode(self, x):
+        return self.word_vectorizer.inverse_transform(x)
+
 
 # If this is the primary file that is executed (ie not an import of another file)
 if __name__ == "__main__":

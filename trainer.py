@@ -12,6 +12,8 @@ import sklearn.metrics as metrics
 import numpy as np
 from torch.utils.tensorboard import SummaryWriter
 
+from chatbot import SimpleBotNet
+
 BATCH_SIZE = 32
 
 model_ = "RNN"
@@ -21,14 +23,6 @@ optimizer_ = "SGD"  # "AdamW"
 INPUT_WIDTH = 7277
 HIDDEN_WIDTH = 16
 OUTPUT_WIDTH = 2
-
-total_net = lambda: nn.Sequential(nn.Linear(INPUT_WIDTH, HIDDEN_WIDTH),
-                                  nn.ReLU(),
-                                  nn.Dropout(),
-                                  nn.Linear(HIDDEN_WIDTH, HIDDEN_WIDTH//2),
-                                  nn.ReLU(),
-                                  nn.Linear(HIDDEN_WIDTH//2, OUTPUT_WIDTH),
-                                  )
 
 class LitVanillaRNN(L.LightningModule):
     def __init__(self, total_net: nn.Module):
@@ -96,7 +90,7 @@ if __name__ == '__main__':
     vocab_size, train_set, validation_set = data_loading_code.load()
 
     # model
-    product_judge = LitVanillaRNN(total_net())
+    product_judge = LitVanillaRNN(SimpleBotNet(INPUT_WIDTH, HIDDEN_WIDTH, OUTPUT_WIDTH))
 
 
     # train model
@@ -106,5 +100,5 @@ if __name__ == '__main__':
     trainer.fit(model=product_judge,
                 train_dataloaders=DataLoader(train_set, batch_size=BATCH_SIZE),
                 val_dataloaders=DataLoader(validation_set, batch_size=BATCH_SIZE))
-    torch.save(product_judge, 'product_judge.pt')
+    torch.save(product_judge.total_net, 'product_judge.pt')
 

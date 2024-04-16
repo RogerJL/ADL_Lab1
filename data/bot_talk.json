@@ -1,0 +1,10 @@
+{
+  "answer_judgement":{
+    "positive": [
+      "Thank you for your glowing review"
+    ],
+    "negative": [
+      "Sorry to hear that"
+    ]
+  }
+}
