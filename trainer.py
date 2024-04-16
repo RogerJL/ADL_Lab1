@@ -27,6 +27,7 @@ OUTPUT_WIDTH = 2
 class LitVanillaRNN(L.LightningModule):
     def __init__(self, total_net: nn.Module):
         super().__init__()
+        self.save_hyperparameters()
         self.total_net = total_net
         self.example_input_array = F.one_hot(torch.tensor([5]), INPUT_WIDTH).type(torch.FloatTensor)
 
@@ -94,9 +95,18 @@ if __name__ == '__main__':
 
 
     # train model
+    from lightning.pytorch.callbacks import ModelCheckpoint
+
+    # saves a file like: my/path/sample-mnist-epoch=02-val_loss=0.32.ckpt
+    checkpoint_callback = ModelCheckpoint(
+        monitor='val_acc',
+        mode='max',
+        dirpath="data/",
+        filename="model-{100 * val_acc:.1f}-{val_loss:.2f}",
+    )
     early_stopping = EarlyStopping('val_loss', patience=200, strict=True)
     logger = TensorBoardLogger("lightning_logs", name=f"{model_}/{optimizer_}", log_graph=True,)
-    trainer = L.Trainer(callbacks=[early_stopping], logger=logger, max_epochs=5000)
+    trainer = L.Trainer(callbacks=[checkpoint_callback, early_stopping], logger=logger, max_epochs=5000)
     trainer.fit(model=product_judge,
                 train_dataloaders=DataLoader(train_set, batch_size=BATCH_SIZE),
                 val_dataloaders=DataLoader(validation_set, batch_size=BATCH_SIZE))

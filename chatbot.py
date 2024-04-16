@@ -21,21 +21,22 @@ class SimpleBotNet(nn.Module):
 
 
 
+if __name__ == '__main__':
 
-translator = data_loading_code.Translator.load_persistent()
-product_judge = torch.load('product_judge.pt')
+    translator = data_loading_code.Translator.load_persistent()
+    product_judge = torch.load('product_judge.pt')
 
-with open('data/bot_talk.json', 'r') as json_data:
-    messages = json.load(json_data)
+    with open('data/bot_talk.json', 'r') as json_data:
+        messages = json.load(json_data)
 
-while True:
-    review = input('Enter a review (or q to quit): ')
-    if review == 'q':
-        break
+    while True:
+        review = input('Enter a review (or q to quit): ')
+        if review == 'q':
+            break
 
-    x = translator.encode([review], as_tensor=True)
-    judgement_vector = product_judge.forward(x)
-    judgement = 'positive' if torch.argmax(judgement_vector) else 'negative'
+        x = translator.encode([review], as_tensor=True)
+        judgement_vector = product_judge.forward(x)
+        judgement = 'positive' if torch.argmax(judgement_vector) else 'negative'
 
-    msg = judgement # random.choice(messages['answer_judgement'][judgement])
-    print(f"Anna: {msg}")
+        msg = judgement # random.choice(messages['answer_judgement'][judgement])
+        print(f"Anna: {msg}")
