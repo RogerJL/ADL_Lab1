@@ -22,58 +22,6 @@ INPUT_WIDTH = 7277
 HIDDEN_WIDTH = 16
 OUTPUT_WIDTH = 2
 
-class InputNet(nn.Module):
-    def __init__(self):
-        super().__init__()
-        self.in1 = nn.Sequential(nn.Linear(INPUT_WIDTH, HIDDEN_WIDTH),
-                                 nn.ReLU())
-
-    def forward(self, x):
-        """
-        Computes the forward pass of a vanilla RNN.
-        """
-        x =  self.in1(x)
-
-        return x
-
-class RecurrentNet(nn.Module):
-    def __init__(self):
-        super().__init__()
-        self.recurrent = nn.Sequential(nn.Linear(HIDDEN_WIDTH + RECURRENT_WIDTH, HIDDEN_WIDTH + RECURRENT_WIDTH),
-                                       nn.Tanh())
-        self.hidden_state = None
-
-    def on_batch_start(self, batch_size, device) -> Optional[int]:
-        # reinit H
-        self.hidden_state = [torch.zeros(size=(batch_size, RECURRENT_WIDTH)).to(device)]
-        return None
-
-
-    def forward(self, x):
-        """
-        Computes the forward pass of a vanilla RNN.
-        """
-        c = torch.concat([x, self.hidden_state[-1]], dim=1)
-        c = self.recurrent(c)
-        self.hidden_state.append(c[:, HIDDEN_WIDTH:])
-        x2 = c[:, :HIDDEN_WIDTH]
-        return x2
-
-class OutputNet(nn.Module):
-    def __init__(self):
-        super().__init__()
-        self.out1 = nn.Sequential(nn.Linear(HIDDEN_WIDTH, HIDDEN_WIDTH//2),
-                                  nn.ReLU(),
-                                  nn.Linear(HIDDEN_WIDTH//2, OUTPUT_WIDTH),
-                                  )
-
-    def forward(self, x):
-        """
-        Computes the output forward pass of a vanilla RNN.
-        """
-        x = self.out1(x)
-        return x
-
 total_net = lambda: nn.Sequential(nn.Linear(INPUT_WIDTH, HIDDEN_WIDTH),
                                   nn.ReLU(),
                                   nn.Dropout(),
@@ -83,9 +31,9 @@ total_net = lambda: nn.Sequential(nn.Linear(INPUT_WIDTH, HIDDEN_WIDTH),
                                   )
 
 class LitVanillaRNN(L.LightningModule):
-    def __init__(self, input_net, recurrent_net, output_net):
+    def __init__(self, total_net: nn.Module):
         super().__init__()
-        self.total_net = total_net()
+        self.total_net = total_net
         self.example_input_array = F.one_hot(torch.tensor([5]), INPUT_WIDTH).type(torch.FloatTensor)
 
     def forward(self, x):
@@ -104,6 +52,9 @@ class LitVanillaRNN(L.LightningModule):
 #        loss = F.cross_entropy(F.sigmoid(y_est),
 #                               F.one_hot(y, 2).type(torch.FloatTensor).to(y_est.device),
 #                               reduction='sum')
+        loss = F.cross_entropy(y_est,
+                               y,
+                               reduction='sum')
         if stage == 'train':
             self.log('train_loss', loss, on_epoch=True)
             self.log('train_acc', acc, on_epoch=True)
@@ -145,7 +96,7 @@ if __name__ == '__main__':
     vocab_size, train_set, validation_set = data_loading_code.load()
 
     # model
-    product_judge = LitVanillaRNN(InputNet(), RecurrentNet(), OutputNet())
+    product_judge = LitVanillaRNN(total_net())
 
 
     # train model
