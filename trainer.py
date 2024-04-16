@@ -1,24 +1,25 @@
-import os
 from typing import Any, Optional
 
 import torch
+from lightning.pytorch.loggers import TensorBoardLogger
 from overrides import overrides
 from torch import nn, Tensor
 import torch.nn.functional as F
-from torch.utils.tensorboard import SummaryWriter
-from torchvision import transforms
-from torchvision.datasets import MNIST
-from torch.utils.data import DataLoader, Dataset
+from torch.utils.data import DataLoader
 import lightning as L
 from lightning.pytorch.callbacks import EarlyStopping
+import sklearn.metrics as metrics
+import numpy as np
+from torch.utils.tensorboard import SummaryWriter
+
+BATCH_SIZE = 32
 
 model_ = "RNN"
-optimizer_ = "AdamW"
+optimizer_ = "SGD"  # "AdamW"
 
 #%% NN modules
 INPUT_WIDTH = 7277
-HIDDEN_WIDTH = 64
-RECURRENT_WIDTH = 64
+HIDDEN_WIDTH = 16
 OUTPUT_WIDTH = 2
 
 class InputNet(nn.Module):
@@ -42,12 +43,11 @@ class RecurrentNet(nn.Module):
                                        nn.Tanh())
         self.hidden_state = None
 
-    def on_batch_start(self, batch: Any, batch_idx: int) -> Optional[int]:
+    def on_batch_start(self, batch_size, device) -> Optional[int]:
         # reinit H
-        x, y = batch
-        batch_size = x.size(0)
-        self.hidden_state = [torch.zeros(size=(batch_size, HIDDEN_WIDTH)).to(x.device)]
+        self.hidden_state = [torch.zeros(size=(batch_size, RECURRENT_WIDTH)).to(device)]
         return None
+
 
     def forward(self, x):
         """
@@ -62,7 +62,10 @@ class RecurrentNet(nn.Module):
 class OutputNet(nn.Module):
     def __init__(self):
         super().__init__()
-        self.out1 = nn.Sequential(nn.Linear(HIDDEN_WIDTH, OUTPUT_WIDTH))
+        self.out1 = nn.Sequential(nn.Linear(HIDDEN_WIDTH, HIDDEN_WIDTH//2),
+                                  nn.ReLU(),
+                                  nn.Linear(HIDDEN_WIDTH//2, OUTPUT_WIDTH),
+                                  )
 
     def forward(self, x):
         """
@@ -71,57 +74,70 @@ class OutputNet(nn.Module):
         x = self.out1(x)
         return x
 
-
+total_net = lambda: nn.Sequential(nn.Linear(INPUT_WIDTH, HIDDEN_WIDTH),
+                                  nn.ReLU(),
+                                  nn.Dropout(),
+                                  nn.Linear(HIDDEN_WIDTH, HIDDEN_WIDTH//2),
+                                  nn.ReLU(),
+                                  nn.Linear(HIDDEN_WIDTH//2, OUTPUT_WIDTH),
+                                  )
 
 class LitVanillaRNN(L.LightningModule):
     def __init__(self, input_net, recurrent_net, output_net):
         super().__init__()
-        self.input_net = input_net
-        self.recurrent_net = recurrent_net
-        self.output_net = output_net
+        self.total_net = total_net()
+        self.example_input_array = F.one_hot(torch.tensor([5]), INPUT_WIDTH).type(torch.FloatTensor)
 
-    def _step(self, x, y):
-        h = self.input_net(x)
-        h = self.recurrent_net(h)
-        y_est = self.output_net(h)
+    def forward(self, x):
+        y_est = self.total_net(x)
+        return y_est
+
+    def _step(self, x, y, stage=None):
+        y_est = self.forward(x)
+        loss = None
+        cm = metrics.confusion_matrix(y.cpu(),
+                                      torch.argmax(y_est, dim=1).cpu())
+        acc = np.sum(np.diag(cm)) / np.sum(cm)
         loss = F.binary_cross_entropy_with_logits(y_est,
                                                   F.one_hot(y, 2).type(torch.FloatTensor).to(y_est.device),
                                                   reduction='sum')
-        return loss
+#        loss = F.cross_entropy(F.sigmoid(y_est),
+#                               F.one_hot(y, 2).type(torch.FloatTensor).to(y_est.device),
+#                               reduction='sum')
+        if stage == 'train':
+            self.log('train_loss', loss, on_epoch=True)
+            self.log('train_acc', acc, on_epoch=True)
+
+        if stage == 'val':
+            self.log('val_loss', loss, on_epoch=True)
+            self.log('val_acc', acc, on_epoch=True)
+
+        return loss, cm
 
     @overrides
     def training_step(self, batch, batch_idx, *args, **kwargs) -> Tensor:
         # training_step defines the train loop.
         x, y = batch
-        loss = self._step(x, y)
-        self.log('train_loss', loss, on_epoch=True)
+        loss, cm = self._step(x, y, stage='train')
         return loss
 
     @overrides
     def validation_step(self, batch, batch_idx, *args, **kwargs):
-        # training_step defines the train loop.
+        # validation_step defines the validation loop.
         x, y = batch
-        loss = self._step(x, y)
-        self.log('val_loss', loss, on_epoch=True)
+        loss, cm = self._step(x, y, stage='val')
         return loss
 
     @overrides
     def configure_optimizers(self):
         if optimizer_ == "AdamW":
-            optimizer = torch.optim.Adam(self.parameters(), lr=1e-3)
+            optimizer = torch.optim.AdamW(self.parameters(), lr=3e-5, weight_decay=1e-3)
+        elif optimizer_ == "SGD":
+            optimizer = torch.optim.SGD(self.parameters(), lr=3e-4, weight_decay=1e-3)
         else:
             raise NotImplementedError("Currently only supports AdamW")
         return optimizer
 
-    @overrides
-    def on_train_batch_start(self, batch: Any, batch_idx: int) -> Optional[int]:
-        # reinit H
-        return self.recurrent_net.on_batch_start(batch, batch_idx)
-
-    @overrides
-    def on_validation_batch_start(self, batch: Any, batch_idx: int, dataloader_idx: int = 0) -> None:
-        # reinit H
-        self.recurrent_net.on_batch_start(batch, batch_idx)
 
 if __name__ == '__main__':
     import data_loading_code
@@ -131,11 +147,13 @@ if __name__ == '__main__':
     # model
     product_judge = LitVanillaRNN(InputNet(), RecurrentNet(), OutputNet())
 
+
     # train model
-    early_stopping = EarlyStopping('val_loss', patience=10, strict=True)
-    trainer = L.Trainer(callbacks=[early_stopping])
+    early_stopping = EarlyStopping('val_loss', patience=200, strict=True)
+    logger = TensorBoardLogger("lightning_logs", name=f"{model_}/{optimizer_}", log_graph=True,)
+    trainer = L.Trainer(callbacks=[early_stopping], logger=logger, max_epochs=5000)
     trainer.fit(model=product_judge,
-                train_dataloaders=DataLoader(train_set, batch_size=32),
-                val_dataloaders=DataLoader(validation_set, batch_size=32))
+                train_dataloaders=DataLoader(train_set, batch_size=BATCH_SIZE),
+                val_dataloaders=DataLoader(validation_set, batch_size=BATCH_SIZE))
     torch.save(product_judge, 'product_judge.pt')
 
