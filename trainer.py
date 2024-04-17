@@ -88,7 +88,7 @@ if __name__ == '__main__':
     OUTPUT_WIDTH = 2
     BATCH_SIZE = 32
 
-    model_ = "RNN"
+    model_ = "Chat"
 
     product_judge = LitVanilla(SimpleBotNet(INPUT_WIDTH, HIDDEN_WIDTH, OUTPUT_WIDTH),
                                optimizer="SGD",
