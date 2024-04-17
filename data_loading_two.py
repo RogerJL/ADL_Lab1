@@ -30,34 +30,16 @@ def load():
     def data_process(raw_text_iter: dataset.IterableDataset) -> Tensor:
         """Converts raw text into a flat Tensor."""
         data = [torch.tensor(vocab(tokenizer(item)), dtype=torch.long) for item in raw_text_iter]
-        return torch.cat(tuple(filter(lambda t: t.numel() > 0, data)))
+        data = [t if t.numel() > 0 else None for t in data]
+        return data
 
     train_data = data_process(training_data)
     val_data = data_process(validation_data)
 
+    train_labels = torch.tensor(training_labels).to(device)
+    val_labels = torch.tensor(validation_labels).to(device)
 
-    def batchify(data: Tensor, bsz: int) -> Tensor:
-        """Divides the data into ``bsz`` separate sequences, removing extra elements
-        that wouldn't cleanly fit.
-
-        Arguments:
-            data: Tensor, shape ``[N]``
-            bsz: int, batch size
-
-        Returns:
-            Tensor of shape ``[N // bsz, bsz]``
-        """
-        seq_len = data.size(0) // bsz
-        data = data[:seq_len * bsz]
-        data = data.view(bsz, seq_len).t().contiguous()
-        return data.to(device)
-
-    batch_size = 20
-    eval_batch_size = 10
-    train_data = batchify(train_data, batch_size)  # shape ``[seq_len, batch_size]``
-    val_data = batchify(val_data, eval_batch_size)
-
-    return train_data, val_data
+    return len(vocab), (train_data, train_labels), (val_data, val_labels)
 
 if __name__ == '__main__':
     load()

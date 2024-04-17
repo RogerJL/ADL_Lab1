@@ -1,4 +1,3 @@
-from typing import Any, Optional
 
 import torch
 from lightning.pytorch.loggers import TensorBoardLogger
@@ -14,22 +13,14 @@ from torch.utils.tensorboard import SummaryWriter
 
 from chatbot import SimpleBotNet
 
-BATCH_SIZE = 32
-
-model_ = "RNN"
-optimizer_ = "SGD"  # "AdamW"
-
-#%% NN modules
-INPUT_WIDTH = 7277
-HIDDEN_WIDTH = 16
-OUTPUT_WIDTH = 2
 
 class LitVanilla(L.LightningModule):
-    def __init__(self, total_net: nn.Module):
+    def __init__(self, total_net: nn.Module, optimizer: str, example_input_array=None):
         super().__init__()
         self.save_hyperparameters()
         self.total_net = total_net
-        self.example_input_array = F.one_hot(torch.tensor([5]), INPUT_WIDTH).type(torch.FloatTensor)
+        self.optimizer = optimizer
+        self.example_input_array = example_input_array
 
     def forward(self, x):
         y_est = self.total_net(x)
@@ -76,12 +67,12 @@ class LitVanilla(L.LightningModule):
 
     @overrides
     def configure_optimizers(self):
-        if optimizer_ == "AdamW":
+        if self.optimizer == "AdamW":
             optimizer = torch.optim.AdamW(self.parameters(), lr=3e-5, weight_decay=1e-3)
-        elif optimizer_ == "SGD":
+        elif self.optimizer == "SGD":
             optimizer = torch.optim.SGD(self.parameters(), lr=3e-4, weight_decay=1e-3)
         else:
-            raise NotImplementedError("Currently only supports AdamW")
+            raise NotImplementedError("Currently only supports AdamW, got " + self.optimizer)
         return optimizer
 
 
@@ -91,8 +82,17 @@ if __name__ == '__main__':
     vocab_size, train_set, validation_set = data_loading_code.load()
 
     # model
-    product_judge = LitVanilla(SimpleBotNet(INPUT_WIDTH, HIDDEN_WIDTH, OUTPUT_WIDTH))
+    # %% NN modules
+    INPUT_WIDTH = vocab_size
+    HIDDEN_WIDTH = 16
+    OUTPUT_WIDTH = 2
+    BATCH_SIZE = 32
 
+    model_ = "RNN"
+
+    product_judge = LitVanilla(SimpleBotNet(INPUT_WIDTH, HIDDEN_WIDTH, OUTPUT_WIDTH),
+                               optimizer="SGD",
+                               example_input_array=F.one_hot(torch.tensor([5]), INPUT_WIDTH).type(torch.FloatTensor))
 
     # train model
     from lightning.pytorch.callbacks import ModelCheckpoint
@@ -104,10 +104,9 @@ if __name__ == '__main__':
         filename="model-{val_acc:.3f}-{val_loss:.2f}",
     )
     early_stopping = EarlyStopping('val_loss', patience=200, strict=True)
-    logger = TensorBoardLogger("lightning_logs", name=f"{model_}/{optimizer_}", log_graph=True,)
+    logger = TensorBoardLogger("lightning_logs", name=f"{model_}/{product_judge.optimizer}", log_graph=True,)
     trainer = L.Trainer(callbacks=[checkpoint_callback, early_stopping], logger=logger, max_epochs=5000)
     trainer.fit(model=product_judge,
                 train_dataloaders=DataLoader(train_set, batch_size=BATCH_SIZE),
                 val_dataloaders=DataLoader(validation_set, batch_size=BATCH_SIZE))
     torch.save(product_judge.total_net, 'product_judge.pt')
-
