@@ -24,7 +24,7 @@ INPUT_WIDTH = 7277
 HIDDEN_WIDTH = 16
 OUTPUT_WIDTH = 2
 
-class LitVanillaRNN(L.LightningModule):
+class LitVanilla(L.LightningModule):
     def __init__(self, total_net: nn.Module):
         super().__init__()
         self.save_hyperparameters()
@@ -91,7 +91,7 @@ if __name__ == '__main__':
     vocab_size, train_set, validation_set = data_loading_code.load()
 
     # model
-    product_judge = LitVanillaRNN(SimpleBotNet(INPUT_WIDTH, HIDDEN_WIDTH, OUTPUT_WIDTH))
+    product_judge = LitVanilla(SimpleBotNet(INPUT_WIDTH, HIDDEN_WIDTH, OUTPUT_WIDTH))
 
 
     # train model
