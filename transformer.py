@@ -18,7 +18,8 @@ class TransformerModel(nn.Module):
 
     SOS = torch.LongTensor([[0]]).to(device)
 
-    def __init__(self, in_tokens: int, out_tokens: int, d_model: int, nhead: int, dropout: float = 0.5):
+    def __init__(self, in_tokens: int, out_tokens: int,
+                 d_model: int=512, nhead: int=8, dim_feedforward=2048, dropout: float = 0.2):
         super().__init__()
         self.model_type = 'Transformer'
         self.pos_encoder = PositionalEncoding(d_model, dropout)
@@ -26,8 +27,8 @@ class TransformerModel(nn.Module):
                                        nhead=nhead,
                                        num_encoder_layers=2,
                                        num_decoder_layers=1,
-                                       dim_feedforward=2048,
-                                       dropout=0.1,
+                                       dim_feedforward=dim_feedforward,
+                                       dropout=dropout,
                                        #                activation: Union[str, Callable[[Tensor], Tensor]] = F.relu,
                                        #                 custom_encoder: Optional[Any] = None, custom_decoder: Optional[Any] = None,
                                        #                 layer_norm_eps: float = 1e-5, batch_first: bool = False, norm_first: bool = False,
@@ -100,10 +101,13 @@ if __name__ == '__main__':
 
     model_ = "Transformer"
 
-    emsize = 20  # embedding dimension, usually 200
-    nhead = 2  # number of heads in ``nn.MultiheadAttention``
-    dropout = 0.2  # dropout probability
-    model = TransformerModel(in_tokens=ntokens, out_tokens=2, d_model=emsize, nhead=nhead, dropout=dropout).to(device)
+    model = TransformerModel(in_tokens=ntokens,
+                             out_tokens=2,
+                             d_model=20,  # embedding dimension, usually 200
+                             nhead=2,  # number of heads in ``nn.MultiheadAttention``
+                             dim_feedforward=254,
+                             dropout=0.2,  # dropout probability
+                             ).to(device)
 
     transform_judge = LitVanilla(model,
                                  optimizer="AdamW",
