@@ -18,8 +18,7 @@ class TransformerModel(nn.Module):
 
     SOS = torch.LongTensor([[0]]).to(device)
 
-    def __init__(self, in_tokens: int, out_tokens: int, d_model: int, nhead: int, d_hid: int,
-                 nlayers: int, dropout: float = 0.5):
+    def __init__(self, in_tokens: int, out_tokens: int, d_model: int, nhead: int, dropout: float = 0.5):
         super().__init__()
         self.model_type = 'Transformer'
         self.pos_encoder = PositionalEncoding(d_model, dropout)
@@ -101,12 +100,10 @@ if __name__ == '__main__':
 
     model_ = "Transformer"
 
-    emsize = 200  # embedding dimension
-    d_hid = 200  # dimension of the feedforward network model in ``nn.TransformerEncoder``
-    nlayers = 2  # number of ``nn.TransformerEncoderLayer`` in ``nn.TransformerEncoder``
+    emsize = 20  # embedding dimension, usually 200
     nhead = 2  # number of heads in ``nn.MultiheadAttention``
     dropout = 0.2  # dropout probability
-    model = TransformerModel(ntokens, 2, emsize, nhead, d_hid, nlayers, dropout).to(device)
+    model = TransformerModel(in_tokens=ntokens, out_tokens=2, d_model=emsize, nhead=nhead, dropout=dropout).to(device)
 
     transform_judge = LitVanilla(model,
                                  optimizer="SGD",
