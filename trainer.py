@@ -17,7 +17,7 @@ from chatbot import SimpleBotNet
 class LitVanilla(L.LightningModule):
     def __init__(self, total_net: nn.Module, optimizer: str, example_input_array=None):
         super().__init__()
-        self.save_hyperparameters()
+        self.save_hyperparameters(ignore=['total_net'])
         self.total_net = total_net
         self.optimizer = optimizer
         self.example_input_array = example_input_array
@@ -27,27 +27,29 @@ class LitVanilla(L.LightningModule):
         return y_est
 
     def _step(self, x, y, stage=None):
-        y_est = self.forward(x)
+        # Last dimension is Classes
+        y_est = self.forward(x).reshape(-1, 2)
+        y_true = y.type(torch.int64)  # index
+
         loss = None
-        cm = metrics.confusion_matrix(y.cpu(),
-                                      torch.argmax(y_est, dim=1).cpu())
-        acc = np.sum(np.diag(cm)) / np.sum(cm)
-        loss = F.binary_cross_entropy_with_logits(y_est,
-                                                  F.one_hot(y, 2).type(torch.FloatTensor).to(y_est.device),
-                                                  reduction='sum')
+#        loss = F.binary_cross_entropy_with_logits(y_est,
+#                                                  F.one_hot(y, 2).type(torch.float).to(y_est.device))
 #        loss = F.cross_entropy(F.sigmoid(y_est),
-#                               F.one_hot(y, 2).type(torch.FloatTensor).to(y_est.device),
-#                               reduction='sum')
-        loss = F.cross_entropy(y_est,
-                               y,
-                               reduction='sum')
+#                               F.one_hot(y, 2).type(torch.float).to(y_est.device))
+        loss = F.cross_entropy(y_est, y_true, reduction='sum')
+
+        guess = torch.argmax(y_est, dim=1).cpu()
+        y_true = y_true.cpu()
+        cm = metrics.confusion_matrix(y_true, guess, labels=range(2))
+        acc = metrics.accuracy_score(y_true, guess)
+
         if stage == 'train':
-            self.log('train_loss', loss, on_epoch=True)
-            self.log('train_acc', acc, on_epoch=True)
+            self.log('train_loss', loss, on_epoch=True, batch_size=x.shape[0])
+            self.log('train_acc', acc, on_epoch=True, batch_size=x.shape[0])
 
         if stage == 'val':
-            self.log('val_loss', loss, on_epoch=True)
-            self.log('val_acc', acc, on_epoch=True)
+            self.log('val_loss', loss, on_epoch=True, batch_size=x.shape[0])
+            self.log('val_acc', acc, on_epoch=True, batch_size=x.shape[0])
 
         return loss, cm
 
@@ -92,7 +94,7 @@ if __name__ == '__main__':
 
     product_judge = LitVanilla(SimpleBotNet(INPUT_WIDTH, HIDDEN_WIDTH, OUTPUT_WIDTH),
                                optimizer="SGD",
-                               example_input_array=F.one_hot(torch.tensor([5]), INPUT_WIDTH).type(torch.FloatTensor))
+                               example_input_array=F.one_hot(torch.tensor([5]), INPUT_WIDTH).type(torch.float))
 
     # train model
     from lightning.pytorch.callbacks import ModelCheckpoint

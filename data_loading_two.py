@@ -1,11 +1,12 @@
 import pandas as pd
 from sklearn.model_selection import train_test_split
 from torch.utils.data import dataset
-from torchtext.datasets import WikiText2  # + torchdata, portalocker
 from torchtext.data.utils import get_tokenizer
 from torchtext.vocab import build_vocab_from_iterator
 import torch
 from torch import Tensor
+
+from data_loading_code import Sentences
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
@@ -30,16 +31,17 @@ def load():
     def data_process(raw_text_iter: dataset.IterableDataset) -> Tensor:
         """Converts raw text into a flat Tensor."""
         data = [torch.tensor(vocab(tokenizer(item)), dtype=torch.long) for item in raw_text_iter]
-        data = [t if t.numel() > 0 else None for t in data]
+        data = [t.reshape(-1, 1) if t.numel() > 0 else None for t in data]
         return data
 
+    # shape: Seq, Batch
     train_data = data_process(training_data)
     val_data = data_process(validation_data)
 
-    train_labels = torch.tensor(training_labels).to(device)
-    val_labels = torch.tensor(validation_labels).to(device)
+    train_labels = torch.tensor(training_labels).reshape(-1, 1).to(device)
+    val_labels = torch.tensor(validation_labels).reshape(-1, 1).to(device)
 
-    return len(vocab), (train_data, train_labels), (val_data, val_labels)
+    return len(vocab), Sentences(train_data, train_labels, as_is=True), Sentences(val_data, val_labels, as_is=True)
 
 if __name__ == '__main__':
     load()

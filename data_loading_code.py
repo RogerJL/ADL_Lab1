@@ -1,3 +1,5 @@
+from typing import Union
+
 import joblib
 import torch
 import torch.nn as nn
@@ -22,9 +24,9 @@ def preprocess_pandas(data):
 
 
 class Sentences(Dataset):
-    def __init__(self, data, labels):
-        self.data =  torch.from_numpy(np.array(data)).type(torch.FloatTensor)
-        self.labels = torch.from_numpy(np.array(labels)).long()
+    def __init__(self, data, labels, as_is=False):
+        self.data =  data if as_is else torch.from_numpy(np.array(data)).type(torch.float)
+        self.labels = labels if as_is else torch.from_numpy(np.array(labels)).long()
 
     def __len__(self):
         return len(self.data)
@@ -78,7 +80,7 @@ class Translator:
     def encode(self, raw_documents, as_tensor=False):
         matrix = self.word_vectorizer.transform(raw_documents).todense()
         if as_tensor:
-            return torch.from_numpy(np.array(matrix)).type(torch.FloatTensor)
+            return torch.from_numpy(np.array(matrix)).type(torch.float)
         return matrix
 
     def decode(self, x):
