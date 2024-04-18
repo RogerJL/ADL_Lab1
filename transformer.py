@@ -106,7 +106,11 @@ if __name__ == '__main__':
     model = TransformerModel(in_tokens=ntokens, out_tokens=2, d_model=emsize, nhead=nhead, dropout=dropout).to(device)
 
     transform_judge = LitVanilla(model,
-                                 optimizer="SGD",
+                                 optimizer="AdamW",
+                                 lr=2e-4,
+                                 weight_decay=1e-5,
+                                 loss="ce",
+                                 loss_reduction="sum",
                                  example_input_array=torch.tensor([174, 1, 3]).reshape(-1, 1))  # S,B
 
     # train model
