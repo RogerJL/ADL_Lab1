@@ -2,9 +2,9 @@
 
 Determine if product reviews are positive or negative.
 
-`trainer.py`  trains a simple net to the assignment
+`botnet.py`  trains a simple net to the assignment
 
-`chatbot.py`  a simple chatbot reading a line, replies accordingly
+`chatbot.py`  a simple chatbot reading a line, replies accordingly. Can use both simple and transformer models.
 
 ## Transformer
 

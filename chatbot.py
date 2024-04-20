@@ -12,7 +12,7 @@ from transformer import TransformerModel, PositionalEncoding  # used by torch.lo
 
 if __name__ == '__main__':
 
-    transformer_ = True
+    transformer_ = False
     if transformer_:
         # judge_model = transformer.TransformerModel(500, 2)
         judge_model = torch.load('transform_judge_latest.pt')
