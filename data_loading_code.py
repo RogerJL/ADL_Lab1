@@ -64,8 +64,9 @@ def load():
     return vocab_size, Sentences(training_data, training_labels), Sentences(validation_data, validation_labels)
 
 class Translator:
-    def __init__(self, word_vectorizer):
+    def __init__(self, word_vectorizer, use_tensor=True):
         self.word_vectorizer = word_vectorizer
+        self.use_tensor = use_tensor
 
     @classmethod
     def create_persistent(cls, word_vectorizer):
@@ -74,12 +75,12 @@ class Translator:
         return t
 
     @classmethod
-    def load_persistent(cls):
+    def load_persistent(cls, use_tensor=False):
         return Translator(joblib.load('vectorizer.pkl'))
 
-    def encode(self, raw_documents, as_tensor=False):
+    def encode(self, raw_documents):
         matrix = self.word_vectorizer.transform(raw_documents).todense()
-        if as_tensor:
+        if self.use_tensor:
             return torch.from_numpy(np.array(matrix)).type(torch.float)
         return matrix
 

@@ -9,7 +9,7 @@ import lightning as L
 from lightning.pytorch.callbacks import EarlyStopping, ModelCheckpoint
 import sklearn.metrics as metrics
 
-from chatbot import SimpleBotNet
+from botnet import SimpleBotNet
 
 
 class LitVanilla(L.LightningModule):

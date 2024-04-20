@@ -1,30 +1,29 @@
 import json
 import random
 
+from torchtext.data import get_tokenizer
+
 import data_loading_code
 import torch
-from torch import nn
 
-class SimpleBotNet(nn.Module):
-    def __init__(self, input_size, hidden_size, output_size):
-        super().__init__()
-        self.total_net = nn.Sequential(nn.Linear(input_size, hidden_size),
-                                       nn.ReLU(),
-                                       nn.Dropout(),
-                                       nn.Linear(hidden_size, hidden_size//2),
-                                       nn.ReLU(),
-                                       nn.Linear(hidden_size//2, output_size),
-                                       )
-    def forward(self, x):
-        return self.total_net(x)
-
-
-
+import data_loading_two
+from botnet import SimpleBotNet  # used by torch.load
+from transformer import TransformerModel, PositionalEncoding  # used by torch.load
 
 if __name__ == '__main__':
 
-    translator = data_loading_code.Translator.load_persistent()
-    product_judge = torch.load('product_judge.pt')
+    transformer_ = True
+    if transformer_:
+        # judge_model = transformer.TransformerModel(500, 2)
+        judge_model = torch.load('transform_judge_latest.pt')
+        encoder = data_loading_two.build_encoder(get_tokenizer('basic_english'),
+                                                 torch.load("data/vocab.pt"))
+    else:
+        judge_model = torch.load('product_judge.pt')
+        translator = data_loading_code.Translator.load_persistent(use_tensor=True)
+        encoder = translator.encode
+
+    judge_model.eval()
 
     with open('data/bot_talk.json', 'r') as json_data:
         messages = json.load(json_data)
@@ -34,9 +33,9 @@ if __name__ == '__main__':
         if review == 'q':
             break
 
-        x = translator.encode([review], as_tensor=True)
-        judgement_vector = product_judge.forward(x)
+        x = encoder([review])
+        judgement_vector = judge_model.forward(x[0])
         judgement = 'positive' if torch.argmax(judgement_vector) else 'negative'
 
-        msg = judgement # random.choice(messages['answer_judgement'][judgement])
+        msg = random.choice(messages['answer_judgement'][judgement])
         print(f"Anna: {msg}")

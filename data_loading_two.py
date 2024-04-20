@@ -8,8 +8,6 @@ from torch import Tensor
 
 from data_loading_code import Sentences
 
-device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-
 def load():
     # get data, pre-process and split
     data = pd.read_csv("data/amazon_cells_labelled.txt", delimiter='\t', header=None)
@@ -25,8 +23,26 @@ def load():
     )
 
     tokenizer = get_tokenizer('basic_english')
-    vocab = build_vocab_from_iterator(map(tokenizer, training_data), specials=['<unk>'])
-    vocab.set_default_index(vocab['<unk>'])
+    try:
+        vocab = torch.load("data/vocab.pt")
+    except FileNotFoundError:
+        vocab = build_vocab_from_iterator(map(tokenizer, training_data), specials=['<unk>'])
+        vocab.set_default_index(vocab['<unk>'])
+        torch.save(vocab, "data/vocab.pt")
+
+    encoder = build_encoder(tokenizer, vocab)
+
+    # shape: Seq, Batch
+    train_data = encoder(training_data)
+    val_data = encoder(validation_data)
+
+    train_labels = torch.tensor(training_labels).reshape(-1, 1)
+    val_labels = torch.tensor(validation_labels).reshape(-1, 1)
+
+    return len(vocab), Sentences(train_data, train_labels, as_is=True), Sentences(val_data, val_labels, as_is=True)
+
+
+def build_encoder(tokenizer, vocab):
 
     def data_process(raw_text_iter: dataset.IterableDataset) -> Tensor:
         """Converts raw text into a flat Tensor."""
@@ -34,14 +50,8 @@ def load():
         data = [t.reshape(-1, 1) if t.numel() > 0 else None for t in data]
         return data
 
-    # shape: Seq, Batch
-    train_data = data_process(training_data)
-    val_data = data_process(validation_data)
+    return data_process
 
-    train_labels = torch.tensor(training_labels).reshape(-1, 1).to(device)
-    val_labels = torch.tensor(validation_labels).reshape(-1, 1).to(device)
-
-    return len(vocab), Sentences(train_data, train_labels, as_is=True), Sentences(val_data, val_labels, as_is=True)
 
 if __name__ == '__main__':
     load()

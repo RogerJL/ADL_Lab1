@@ -11,22 +11,21 @@ from lightning.pytorch.callbacks import ModelCheckpoint
 import data_loading_two
 from trainer import LitVanilla
 
-device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-
-
 class TransformerModel(nn.Module):
 
-    SOS = torch.LongTensor([[0]]).to(device)
+    SOS = torch.LongTensor([[0]])
 
     def __init__(self, in_tokens: int, out_tokens: int,
-                 d_model: int=512, nhead: int=8, dim_feedforward=2048, dropout: float = 0.2):
+                 d_model: int=512, nhead: int=8,
+                 num_encoder_layers=2, num_decoder_layers=1,
+                 dim_feedforward=2048, dropout: float = 0.2):
         super().__init__()
         self.model_type = 'Transformer'
         self.pos_encoder = PositionalEncoding(d_model, dropout)
         self.transformer = Transformer(d_model=d_model,
                                        nhead=nhead,
-                                       num_encoder_layers=2,
-                                       num_decoder_layers=1,
+                                       num_encoder_layers=num_encoder_layers,
+                                       num_decoder_layers=num_decoder_layers,
                                        dim_feedforward=dim_feedforward,
                                        dropout=dropout,
                                        #                activation: Union[str, Callable[[Tensor], Tensor]] = F.relu,
@@ -65,8 +64,8 @@ class TransformerModel(nn.Module):
             """Generate a square causal mask for the sequence. The masked positions are filled with float('-inf').
             Unmasked positions are filled with float(0.0).
             """
-            src_mask = nn.Transformer.generate_square_subsequent_mask(src.shape[0]).to(device)
-        tgt = self.tgt_embedding(TransformerModel.SOS).reshape(1, 1, self.d_model)  # target message in target language
+            src_mask = nn.Transformer.generate_square_subsequent_mask(src.shape[0])
+        tgt = self.tgt_embedding(TransformerModel.SOS.to(src.device)).reshape(1, 1, self.d_model)  # target message in target language
         output = self.transformer(src=src,
                                   tgt=tgt,  # TODO: stack same for batch
                                   src_mask=src_mask)
@@ -85,7 +84,7 @@ class PositionalEncoding(nn.Module):
         pe = torch.zeros(max_len, 1, d_model)
         pe[:, 0, 0::2] = torch.sin(position * div_term)
         pe[:, 0, 1::2] = torch.cos(position * div_term)
-        self.register_buffer('pe', pe.to(device))
+        self.register_buffer('pe', pe)
 
     def forward(self, src: Tensor) -> Tensor:
         """
@@ -103,16 +102,18 @@ if __name__ == '__main__':
 
     model = TransformerModel(in_tokens=ntokens,
                              out_tokens=2,
-                             d_model=20,  # embedding dimension, usually 200
-                             nhead=2,  # number of heads in ``nn.MultiheadAttention``
-                             dim_feedforward=254,
-                             dropout=0.2,  # dropout probability
-                             ).to(device)
+                             d_model=8,  # embedding dimension, usually 200
+                             nhead=8,  # number of heads in ``nn.MultiheadAttention``
+                             num_encoder_layers=2,
+                             num_decoder_layers=1,
+                             dim_feedforward=8,
+                             dropout=0.5,  # dropout probability
+                             )
 
     transform_judge = LitVanilla(model,
                                  optimizer="AdamW",
                                  lr=2e-4,
-                                 weight_decay=1e-5,
+                                 weight_decay=1e-4,
                                  loss="ce",
                                  loss_reduction="sum",
                                  example_input_array=torch.tensor([174, 1, 3]).reshape(-1, 1))  # S,B
@@ -131,4 +132,8 @@ if __name__ == '__main__':
     trainer.fit(model=transform_judge,
                 train_dataloaders=train_data,
                 val_dataloaders=val_data)
-    torch.save(transform_judge.total_net, 'transform_judge.pt')
+
+    print("Reload best model:", checkpoint_callback.best_model_path)
+    best_checkpoint = torch.load(checkpoint_callback.best_model_path)
+    transform_judge.load_state_dict(best_checkpoint['state_dict'])
+    torch.save(transform_judge.total_net, 'transform_judge_latest.pt')
