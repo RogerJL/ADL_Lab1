@@ -60,4 +60,7 @@ if __name__ == '__main__':
     trainer.fit(model=product_judge,
                 train_dataloaders=DataLoader(train_set, batch_size=BATCH_SIZE, shuffle=True),
                 val_dataloaders=DataLoader(validation_set, batch_size=BATCH_SIZE))
-    torch.save(product_judge.total_net, 'product_judge.pt')
+    print("Reload best model:", checkpoint_callback.best_model_path)
+    best_checkpoint = torch.load(checkpoint_callback.best_model_path)
+    product_judge.load_state_dict(best_checkpoint['state_dict'])
+    torch.save(product_judge.total_net, 'product_judge_latest.pt')

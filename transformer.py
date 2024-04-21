@@ -106,7 +106,7 @@ if __name__ == '__main__':
     model = TransformerModel(in_tokens=ntokens,
                              out_tokens=2,
                              d_model=8,  # embedding dimension, usually 200
-                             nhead=8,  # number of heads in ``nn.MultiheadAttention``
+                             nhead=4,  # number of heads in ``nn.MultiheadAttention``
                              num_encoder_layers=2,
                              num_decoder_layers=1,
                              dim_feedforward=8,
@@ -115,8 +115,8 @@ if __name__ == '__main__':
 
     transform_judge = LitVanilla(model,
                                  optimizer="AdamW",
-                                 lr=2e-4,
-                                 weight_decay=1e-4,
+                                 lr=1e-4,
+                                 weight_decay=1e-5,
                                  loss="ce",
                                  loss_reduction="sum",
                                  example_input_array=torch.tensor([174, 1, 3]).reshape(-1, 1))  # S,B
