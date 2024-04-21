@@ -21,6 +21,7 @@ class TransformerModel(nn.Module):
                  dim_feedforward=2048, dropout: float = 0.2):
         super().__init__()
         self.model_type = 'Transformer'
+        self.sos = None
         self.pos_encoder = PositionalEncoding(d_model, dropout)
         self.transformer = Transformer(d_model=d_model,
                                        nhead=nhead,
@@ -58,14 +59,16 @@ class TransformerModel(nn.Module):
             output Tensor of shape ``[seq_len, batch_size, out_tokens]``
         """
         assert len(src.shape) == 2, 'src must be of shape [seq_len, batch_size]'
-        src = self.embedding(src) * math.sqrt(self.d_model)
+        if self.sos is None:
+            self.sos = TransformerModel.SOS.to(src.device)
+        src = self.embedding(src) / math.sqrt(self.d_model)  # was * in example, is / in report
         src = self.pos_encoder(src)
         if src_mask is True:
             """Generate a square causal mask for the sequence. The masked positions are filled with float('-inf').
             Unmasked positions are filled with float(0.0).
             """
             src_mask = nn.Transformer.generate_square_subsequent_mask(src.shape[0])
-        tgt = self.tgt_embedding(TransformerModel.SOS.to(src.device)).reshape(1, 1, self.d_model)  # target message in target language
+        tgt = self.tgt_embedding(self.sos).reshape(1, 1, self.d_model)  # target message in target language
         output = self.transformer(src=src,
                                   tgt=tgt,  # TODO: stack same for batch
                                   src_mask=src_mask)
