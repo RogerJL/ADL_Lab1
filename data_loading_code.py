@@ -2,30 +2,33 @@ from typing import Union
 
 import joblib
 import torch
-import torch.nn as nn
-import torch.optim as optim
-import torch.nn.functional as F
-from torch.utils.data import TensorDataset, DataLoader
 import numpy as np
-from matplotlib import pyplot
 import pandas as pd
 from sklearn.model_selection import train_test_split
 from sklearn.feature_extraction.text import TfidfVectorizer
-from sklearn.metrics import accuracy_score, confusion_matrix, precision_score, recall_score, classification_report
 from torch.utils.data import Dataset
+
 
 def preprocess_pandas(data):
     data['Sentence'] = data['Sentence'].str.lower()
-    data['Sentence'] = data['Sentence'].replace('[a-zA-Z0-9-_.]+@[a-zA-Z0-9-_.]+', '', regex=True)                      # remove emails
-    data['Sentence'] = data['Sentence'].replace('((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)(\.|$)){4}', '', regex=True)    # remove IP address
-    data['Sentence'] = data['Sentence'].str.replace('[^\w\s]','')                                                       # remove special characters
-    data['Sentence'] = data['Sentence'].replace('\d', '', regex=True)                                                   # remove numbers
+
+    # remove emails
+    data['Sentence'] = data['Sentence'].replace(r'[a-zA-Z0-9-_.]+@[a-zA-Z0-9-_.]+', '', regex=True)
+
+    # remove IP address
+    data['Sentence'] = data['Sentence'].replace(r'((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)(\.|$)){4}', '', regex=True)
+
+    # remove special characters
+    data['Sentence'] = data['Sentence'].str.replace(r'[^\w\s]', '')
+
+    # remove numbers
+    data['Sentence'] = data['Sentence'].replace(r'\d', '', regex=True)
     return data
 
 
 class Sentences(Dataset):
     def __init__(self, data, labels, as_is=False):
-        self.data =  data if as_is else torch.from_numpy(np.array(data)).type(torch.float)
+        self.data = data if as_is else torch.from_numpy(np.array(data)).type(torch.float)
         self.labels = labels if as_is else torch.from_numpy(np.array(labels)).long()
 
     def __len__(self):
@@ -63,6 +66,7 @@ def load():
 
     return vocab_size, Sentences(training_data, training_labels), Sentences(validation_data, validation_labels)
 
+
 class Translator:
     def __init__(self, word_vectorizer, use_tensor=True):
         self.word_vectorizer = word_vectorizer
@@ -75,7 +79,7 @@ class Translator:
         return t
 
     @classmethod
-    def load_persistent(cls, use_tensor=False):
+    def load_persistent(cls):
         return Translator(joblib.load('vectorizer.pkl'))
 
     def encode(self, raw_documents):

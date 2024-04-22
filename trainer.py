@@ -30,9 +30,9 @@ class LitVanilla(L.LightningModule):
 
         if loss == "bce_w_logits":
             def bcewl(y_est, y_true):
-                    return F.binary_cross_entropy_with_logits(y_est,
-                                                              F.one_hot(y_true, 2).type(torch.float),
-                                                              reduction=self.loss_reduction)
+                return F.binary_cross_entropy_with_logits(y_est,
+                                                          F.one_hot(y_true, 2).type(torch.float),
+                                                          reduction=self.loss_reduction)
             self.loss_r = bcewl
         elif loss == "ce_sigmoid":
             def ce_with_sigmoid(y_est, y_true):

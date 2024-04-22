@@ -8,6 +8,7 @@ from torch import Tensor
 
 from data_loading_code import Sentences
 
+
 def load():
     # get data, pre-process and split
     data = pd.read_csv("data/amazon_cells_labelled.txt", delimiter='\t', header=None)
@@ -44,7 +45,7 @@ def load():
 
 def build_encoder(tokenizer, vocab):
 
-    def data_process(raw_text_iter: dataset.IterableDataset) -> Tensor:
+    def data_process(raw_text_iter: dataset.IterableDataset) -> list[Tensor]:
         """Converts raw text into a flat Tensor."""
         data = [torch.tensor(vocab(tokenizer(item)), dtype=torch.long) for item in raw_text_iter]
         data = [t.reshape(-1, 1) if t.numel() > 0 else None for t in data]

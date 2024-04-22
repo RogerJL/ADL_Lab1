@@ -20,7 +20,7 @@ if __name__ == '__main__':
                                                  torch.load("data/vocab.pt"))
     else:
         judge_model = torch.load('product_judge.pt')
-        translator = data_loading_code.Translator.load_persistent(use_tensor=True)
+        translator = data_loading_code.Translator.load_persistent()
         encoder = translator.encode
 
     judge_model.eval()

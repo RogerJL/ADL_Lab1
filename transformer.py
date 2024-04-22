@@ -7,12 +7,13 @@ from torch.nn import Transformer
 import data_loading_two
 from trainer import LitVanilla, fit_and_save
 
+
 class TransformerModel(nn.Module):
 
     SOS = torch.LongTensor([[0]])
 
     def __init__(self, in_tokens: int, out_tokens: int,
-                 d_model: int=512, nhead: int=8,
+                 d_model: int = 512, nhead: int = 8,
                  num_encoder_layers=2, num_decoder_layers=1,
                  dim_feedforward=2048, dropout: float = 0.2):
         super().__init__()
@@ -24,10 +25,6 @@ class TransformerModel(nn.Module):
                                        num_decoder_layers=num_decoder_layers,
                                        dim_feedforward=dim_feedforward,
                                        dropout=dropout,
-                                       #                activation: Union[str, Callable[[Tensor], Tensor]] = F.relu,
-                                       #                 custom_encoder: Optional[Any] = None, custom_decoder: Optional[Any] = None,
-                                       #                 layer_norm_eps: float = 1e-5, batch_first: bool = False, norm_first: bool = False,
-                                       #                 bias: bool = True, device=None, dtype=None
                                        )
         self.embedding = nn.Embedding(in_tokens, d_model)
         self.tgt_embedding = nn.Embedding(1, d_model)
@@ -48,7 +45,6 @@ class TransformerModel(nn.Module):
         Arguments:
             src: Tensor, shape ``[seq_len, batch_size]``
             src_mask: Tensor, shape ``[seq_len, seq_len]`` | True => causal mask | None => None
-            tgt: Tensor, shape ``[seq_len, batch_size]``
 
         Returns:
             output Tensor of shape ``[seq_len, batch_size, out_tokens]``
@@ -93,12 +89,8 @@ class PositionalEncoding(nn.Module):
         return self.dropout(src)
 
 
-
-
 if __name__ == '__main__':
     ntokens, train_data, val_data = data_loading_two.load()
-
-    model_ = "Transformer"
 
     model = TransformerModel(in_tokens=ntokens,
                              out_tokens=2,

@@ -1,10 +1,8 @@
 import torch
+from lightning import LightningDataModule
 from torch import nn
 import torch.nn.functional as F
 from torch.utils.data import DataLoader
-import lightning as L
-from lightning.pytorch.loggers import TensorBoardLogger
-from lightning.pytorch.callbacks import EarlyStopping, ModelCheckpoint
 
 from trainer import LitVanilla, fit_and_save
 
