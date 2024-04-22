@@ -1,18 +1,26 @@
+from typing import Any
+
 import torch
 from overrides import overrides
 from torch import nn, Tensor
 import torch.nn.functional as F
-import lightning as L
 import sklearn.metrics as metrics
+
+import lightning as L
+from lightning.pytorch.callbacks import EarlyStopping
+from lightning.pytorch.callbacks import ModelCheckpoint
+from lightning.pytorch.loggers import TensorBoardLogger
 
 
 class LitVanilla(L.LightningModule):
-    def __init__(self, total_net: nn.Module,
+    def __init__(self, name: str,
+                 total_net: nn.Module,
                  optimizer: str, lr, weight_decay,
                  loss: str, loss_reduction: str,
                  example_input_array=None):
         super().__init__()
         self.save_hyperparameters(ignore=['total_net'])
+        self.name = name
         self.total_net = total_net
         self.optimizer = optimizer
         self.example_input_array = example_input_array
@@ -81,3 +89,26 @@ class LitVanilla(L.LightningModule):
             raise NotImplementedError("Currently only supports SGD and AdamW, got " + self.optimizer)
         return optimizer
 
+
+def fit_and_save(model: L.LightningModule,
+                 filename: str,
+                 train_data: L.LightningDataModule | None = None,  val_data: Any | None = None,
+                 accumulate_grad_batches=1, gradient_clip_val=None):
+    checkpoint_callback = ModelCheckpoint(
+        monitor='val_acc',
+        mode='max',
+        filename="model-{val_acc:.3f}-{val_loss:.2f}",
+    )
+    early_stopping = EarlyStopping('val_loss', patience=200, strict=True)
+    logger = TensorBoardLogger("lightning_logs", name=f"{model.name}/{model.optimizer}", log_graph=True, )
+    trainer = L.Trainer(callbacks=[checkpoint_callback, early_stopping],
+                        logger=logger, max_epochs=5000,
+                        accumulate_grad_batches=accumulate_grad_batches,
+                        gradient_clip_val=gradient_clip_val)
+    trainer.fit(model=model,
+                train_dataloaders=train_data,
+                val_dataloaders=val_data)
+    print("Reload best model:", checkpoint_callback.best_model_path)
+    best_checkpoint = torch.load(checkpoint_callback.best_model_path)
+    model.load_state_dict(best_checkpoint['state_dict'])
+    torch.save(model.total_net, filename)

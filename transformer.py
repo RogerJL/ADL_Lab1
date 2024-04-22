@@ -1,15 +1,11 @@
 import math
 
 import torch
-from lightning.pytorch.loggers import TensorBoardLogger
-from lightning.pytorch.callbacks import EarlyStopping
 from torch import nn, Tensor
 from torch.nn import Transformer
-import lightning as L
-from lightning.pytorch.callbacks import ModelCheckpoint
 
 import data_loading_two
-from trainer import LitVanilla
+from trainer import LitVanilla, fit_and_save
 
 class TransformerModel(nn.Module):
 
@@ -20,7 +16,6 @@ class TransformerModel(nn.Module):
                  num_encoder_layers=2, num_decoder_layers=1,
                  dim_feedforward=2048, dropout: float = 0.2):
         super().__init__()
-        self.model_type = 'Transformer'
         self.sos = None
         self.pos_encoder = PositionalEncoding(d_model, dropout)
         self.transformer = Transformer(d_model=d_model,
@@ -98,6 +93,8 @@ class PositionalEncoding(nn.Module):
         return self.dropout(src)
 
 
+
+
 if __name__ == '__main__':
     ntokens, train_data, val_data = data_loading_two.load()
 
@@ -106,14 +103,15 @@ if __name__ == '__main__':
     model = TransformerModel(in_tokens=ntokens,
                              out_tokens=2,
                              d_model=8,  # embedding dimension, usually 200
-                             nhead=4,  # number of heads in ``nn.MultiheadAttention``
+                             nhead=8,  # number of heads in ``nn.MultiheadAttention``
                              num_encoder_layers=2,
                              num_decoder_layers=1,
                              dim_feedforward=8,
                              dropout=0.5,  # dropout probability
                              )
 
-    transform_judge = LitVanilla(model,
+    transform_judge = LitVanilla("Transform",
+                                 model,
                                  optimizer="AdamW",
                                  lr=1e-4,
                                  weight_decay=1e-5,
@@ -121,22 +119,9 @@ if __name__ == '__main__':
                                  loss_reduction="sum",
                                  example_input_array=torch.tensor([174, 1, 3]).reshape(-1, 1))  # S,B
 
-    # train model
-
-    # saves a file like: my/path/sample-mnist-epoch=02-val_loss=0.32.ckpt
-    checkpoint_callback = ModelCheckpoint(
-        monitor='val_acc',
-        mode='max',
-        filename="model-{val_acc:.3f}-{val_loss:.2f}",
-    )
-    early_stopping = EarlyStopping('val_loss', patience=200, strict=True)
-    logger = TensorBoardLogger("lightning_logs", name=f"{model_}/{transform_judge.optimizer}", log_graph=True,)
-    trainer = L.Trainer(callbacks=[checkpoint_callback, early_stopping], logger=logger, max_epochs=5000)
-    trainer.fit(model=transform_judge,
-                train_dataloaders=train_data,
-                val_dataloaders=val_data)
-
-    print("Reload best model:", checkpoint_callback.best_model_path)
-    best_checkpoint = torch.load(checkpoint_callback.best_model_path)
-    transform_judge.load_state_dict(best_checkpoint['state_dict'])
-    torch.save(transform_judge.total_net, 'transform_judge_latest.pt')
+    # train and saves a file like: my/path/sample-mnist-epoch=02-val_loss=0.32.ckpt
+    fit_and_save(transform_judge,
+                 'transform_judge_latest.pt',
+                 train_data=train_data,
+                 val_data=val_data,
+                 accumulate_grad_batches=32)

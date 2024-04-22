@@ -6,7 +6,7 @@ import lightning as L
 from lightning.pytorch.loggers import TensorBoardLogger
 from lightning.pytorch.callbacks import EarlyStopping, ModelCheckpoint
 
-from trainer import LitVanilla
+from trainer import LitVanilla, fit_and_save
 
 
 class SimpleBotNet(nn.Module):
@@ -36,9 +36,8 @@ if __name__ == '__main__':
     OUTPUT_WIDTH = 2
     BATCH_SIZE = 32
 
-    model_ = "Chat"
-
-    product_judge = LitVanilla(SimpleBotNet(INPUT_WIDTH, HIDDEN_WIDTH, OUTPUT_WIDTH),
+    product_judge = LitVanilla("Chat",
+                               SimpleBotNet(INPUT_WIDTH, HIDDEN_WIDTH, OUTPUT_WIDTH),
                                optimizer="SGD",
                                lr=2e-4,
                                weight_decay=1e-5,
@@ -47,20 +46,7 @@ if __name__ == '__main__':
                                example_input_array=F.one_hot(torch.tensor([5]), INPUT_WIDTH).type(torch.float))
 
     # train model
-
-    # saves a file like: my/path/sample-mnist-epoch=02-val_loss=0.32.ckpt
-    checkpoint_callback = ModelCheckpoint(
-        monitor='val_acc',
-        mode='max',
-        filename="model-{val_acc:.3f}-{val_loss:.2f}",
-    )
-    early_stopping = EarlyStopping('val_loss', patience=200, strict=True)
-    logger = TensorBoardLogger("lightning_logs", name=f"{model_}/{product_judge.optimizer}", log_graph=True,)
-    trainer = L.Trainer(callbacks=[checkpoint_callback, early_stopping], logger=logger, max_epochs=5000)
-    trainer.fit(model=product_judge,
-                train_dataloaders=DataLoader(train_set, batch_size=BATCH_SIZE, shuffle=True),
-                val_dataloaders=DataLoader(validation_set, batch_size=BATCH_SIZE))
-    print("Reload best model:", checkpoint_callback.best_model_path)
-    best_checkpoint = torch.load(checkpoint_callback.best_model_path)
-    product_judge.load_state_dict(best_checkpoint['state_dict'])
-    torch.save(product_judge.total_net, 'product_judge_latest.pt')
+    fit_and_save(product_judge,
+                 'product_judge_latest.pt',
+                 train_data=DataLoader(train_set, batch_size=BATCH_SIZE, shuffle=True),
+                 val_data=DataLoader(validation_set, batch_size=BATCH_SIZE))
