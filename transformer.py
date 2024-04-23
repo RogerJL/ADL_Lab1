@@ -95,7 +95,7 @@ if __name__ == '__main__':
     model = TransformerModel(in_tokens=ntokens,
                              out_tokens=2,
                              d_model=8,  # embedding dimension, usually 200
-                             nhead=8,  # number of heads in ``nn.MultiheadAttention``
+                             nhead=4,  # number of heads in ``nn.MultiheadAttention``
                              num_encoder_layers=2,
                              num_decoder_layers=1,
                              dim_feedforward=8,
@@ -116,4 +116,6 @@ if __name__ == '__main__':
                  'transform_judge_latest.pt',
                  train_data=train_data,
                  val_data=val_data,
-                 accumulate_grad_batches=32)
+                 accumulate_grad_batches=1,
+                 gradient_clip_val=10,
+                 )
