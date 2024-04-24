@@ -108,7 +108,7 @@ def fit_and_save(model: L.LightningModule,
     trainer.fit(model=model,
                 train_dataloaders=train_data,
                 val_dataloaders=val_data)
-    print("Reload best model:", checkpoint_callback.best_model_path)
+    print("\nReload best model:", checkpoint_callback.best_model_path)
     best_checkpoint = torch.load(checkpoint_callback.best_model_path)
     model.load_state_dict(best_checkpoint['state_dict'])
     torch.save(model.total_net, filename)
