@@ -133,7 +133,7 @@ if __name__ == '__main__':
                                      optimizer="RAdam",
                                      lr=1e-4,
                                      weight_decay=1e-5,
-                                     loss="ce",
+                                     loss="mml",
                                      loss_reduction="sum",
                                      example_input_array=torch.tensor([174, 1, 3]).reshape(-1, 1))  # S,B
 

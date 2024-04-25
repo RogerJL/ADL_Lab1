@@ -42,6 +42,14 @@ class LitVanilla(L.LightningModule):
             def ce(y_est, y_true):
                 return F.cross_entropy(y_est, y_true, reduction=self.loss_reduction)
             self.loss_r = ce
+        elif loss == "mml":
+            def hinge(y_est, y_true):
+                return F.multi_margin_loss(y_est,
+                                           y_true,
+                                           reduction=self.loss_reduction)
+            self.loss_r = hinge
+        else:
+            raise NotImplementedError(f"Loss {loss} not implemented")
 
     def forward(self, x):
         y_est = self.total_net(x)
