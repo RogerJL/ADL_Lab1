@@ -85,6 +85,8 @@ class LitVanilla(L.LightningModule):
             optimizer = torch.optim.AdamW(self.parameters(), lr=self.lr, weight_decay=self.wd)
         elif self.optimizer == "SGD":
             optimizer = torch.optim.SGD(self.parameters(), lr=self.lr, weight_decay=self.wd)
+        elif self.optimizer == "RAdam":
+            optimizer = torch.optim.RAdam(self.parameters(), lr=self.lr, weight_decay=self.wd)
         else:
             raise NotImplementedError("Currently only supports SGD and AdamW, got " + self.optimizer)
         return optimizer
