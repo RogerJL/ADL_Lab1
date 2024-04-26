@@ -103,7 +103,8 @@ class LitVanilla(L.LightningModule):
 def fit_and_save(model: L.LightningModule,
                  filename: str,
                  train_data: L.LightningDataModule | None = None,  val_data: Any | None = None,
-                 accumulate_grad_batches=1, gradient_clip_val=None):
+                 accumulate_grad_batches=1,
+                 gradient_clip_val=None):
     checkpoint_callback = ModelCheckpoint(
         monitor='val_acc',
         mode='max',
@@ -111,8 +112,13 @@ def fit_and_save(model: L.LightningModule,
     )
     early_stopping = EarlyStopping('val_loss', patience=200, strict=True)
     logger = TensorBoardLogger("lightning_logs", name=f"{model.name}/{model.optimizer}", log_graph=True, )
+    hparams = {'accumulate_grad_batches': accumulate_grad_batches,
+               'gradient_clip_val': gradient_clip_val}
+    hparams.update(model.hparams)
+    logger.log_hyperparams(hparams)
     trainer = L.Trainer(callbacks=[checkpoint_callback, early_stopping],
                         logger=logger, max_epochs=5000,
+                        enable_progress_bar=False,
                         accumulate_grad_batches=accumulate_grad_batches,
                         gradient_clip_val=gradient_clip_val)
     trainer.fit(model=model,
@@ -121,4 +127,7 @@ def fit_and_save(model: L.LightningModule,
     print("\nReload best model:", checkpoint_callback.best_model_path)
     best_checkpoint = torch.load(checkpoint_callback.best_model_path)
     model.load_state_dict(best_checkpoint['state_dict'])
+    hparams.update(model.hparams)
+    logger.log_hyperparams(hparams,
+                           {'best_' + k: v for k, v in trainer.callback_metrics.items()})
     torch.save(model.total_net, filename)
