@@ -1,2 +1,2 @@
 #!/bin/bash
-tensorboard --logdir=lightning_logs --bind_all
+tensorboard --logdir=lightning_logs --load_fast=true --bind_all
